@@ -31,7 +31,6 @@ if sys.argv[0]!='ipykernel_launcher': # running in a notebook
     features = args.features
     output = args.output
     epochs = args.epochs
-print(features)
 
 # %% Formatting
 from hbbgbb import formatter
