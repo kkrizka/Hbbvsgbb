@@ -16,6 +16,8 @@ import hbbgbb.plot as myplt
 from hbbgbb import data
 from hbbgbb import analysis
 
+from hbbgbb.models import SimpleModel
+
 # %% Arguments
 features=['mass','C2','D2','e3','Tau21_wta','Tau32_wta','Split12','Split23']
 output='feat'
@@ -40,20 +42,9 @@ fmt=formatter.Formatter('variables.yaml')
 df=data.load_data()
 data.label(df)
 
-# %% Simple model
-class MyModel(snt.Module):
-    def __init__(self):
-        super(MyModel, self).__init__()
-        self.hidden1 = snt.Linear(1024, name="hidden1")
-        self.hidden2 = snt.Linear(1024, name="hidden2")
-        self.logits = snt.Linear(3, name="logits")
-    def __call__(self, data):
-        output=data
-        output = tf.nn.relu(self.hidden1(output))
-        output = tf.nn.relu(self.hidden2(output))
-        output = self.logits(output)
-        return output
-
+# %% Create tensors of features
+feat=tf.convert_to_tensor(df[features])
+labels=tf.convert_to_tensor(df.label)
 
 # %% Create features
 for feature in features+['nConstituents']:
@@ -61,15 +52,9 @@ for feature in features+['nConstituents']:
   plt.savefig(f'labels_{feature}.png')
   plt.show()
   plt.clf()
-# %% Create tensors of features
-feat=tf.convert_to_tensor(df[features])
-labels=tf.convert_to_tensor(df.label)
-normalizer = tf.keras.layers.Normalization(axis=-1)
-normalizer.adapt(feat)
-feat=normalizer(feat)
 
 # %%
-mlp=MyModel()
+mlp=SimpleModel.SimpleModel()
 
 # %%
 opt = snt.optimizers.SGD(learning_rate=0.1)
@@ -77,7 +62,7 @@ opt = snt.optimizers.SGD(learning_rate=0.1)
 def step(feat,labels):
   """Performs one optimizer step on a single mini-batch."""
   with tf.GradientTape() as tape:
-    logits = mlp(feat)
+    logits = mlp(feat, is_training=True)
 
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                           labels=labels)
