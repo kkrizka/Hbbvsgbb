@@ -1,0 +1,4 @@
+# output files
+*.pickle
+*.png
+*.npy
