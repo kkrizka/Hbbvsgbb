@@ -4,12 +4,14 @@
 
 # %%
 import glob
-
+import time
 import itertools
+import tqdm
 
 import numpy as np
 import pandas as pd
 import networkx as nx
+import tensorflow as tf
 import graph_nets as gn
 import sonnet as snt
 import h5py
@@ -30,47 +32,66 @@ fatjet_consts=f['fat_jet_constituents']
 
 # %%
 def create_graph(fatjet,const):
-    G=nx.Graph()
-
     # Global features are properties of the fat jet
-    G.graph['features']=[]
+    globals=[]
 
     # Nodes are individual tracks
     track_feat=['trk_d0','trk_z0','phi','eta']
-    nodes=[(idx, {'features':feat.to_numpy()}) for idx, feat in const[track_feat].iterrows()]
-    print(nodes)
-    G.add_nodes_from(nodes)
+    nodes=const[track_feat].to_numpy()
 
-    # Fully connected graph, no self-loops
-    fc=itertools.product(range(len(const.index)),range(len(const.index)))
-    edges=[(i,j,{'features':None}) for i,j in fc if i!=j]
-    G.add_edges_from(edges)
+    return {'globals':globals, 'nodes':nodes}
 
-    return G
-
-nxgraphs=[]
-for i,fatjet in df.iterrows():
+graphs=[]
+for i,fatjet in tqdm.tqdm(df.iterrows(),total=len(df.index)):
     fatjet_const=pd.DataFrame(fatjet_consts[i])
     fatjet_const=fatjet_const[~fatjet_const.pt.isna()]
-    nxgraphs.append(create_graph(fatjet, fatjet_const))
-    break
+    graphs.append(create_graph(fatjet, fatjet_const))
 
-graphs=[gn.utils_np.networkx_to_data_dict(g) for g in nxgraphs]
 graphs=gn.utils_tf.data_dicts_to_graphs_tuple(graphs)
 
-# %% Draw an example graph
-fig, ax = plt.subplots(figsize=(6, 6))
-nx.draw(nxgraphs[0], ax=ax)
+labels=tf.convert_to_tensor(df[['label']])
 
 # %%
-OUTPUT_EDGE_SIZE = 10
-OUTPUT_NODE_SIZE = 11
-OUTPUT_GLOBAL_SIZE = 12
 graph_network = gn.modules.DeepSets(
-    node_model_fn=lambda: snt.Linear(output_size=OUTPUT_NODE_SIZE),
-    global_model_fn=lambda: snt.Linear(output_size=OUTPUT_GLOBAL_SIZE))
-# %%
-graph_network(graphs)
-# %%
+    node_model_fn=lambda: snt.nets.MLP([64, 64, 64]),
+    global_model_fn=lambda: snt.nets.MLP([64,3])
+)
+
+# %% Training procedure
+class Trainer:
+    def __init__(self, model):
+        # Model to keep track of
+        self.model= model
+
+        # Training tools
+        self.stat = pd.DataFrame(columns=['loss'])
+        self.opt  = snt.optimizers.Adam(learning_rate=0.1)
+
+    def step(self, graphs, labels):
+        """Performs one optimizer step on a single mini-batch."""
+        with tf.GradientTape() as tape:
+            pred = self.model(graphs)
+            logits=pred.globals
+            loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
+                                                                    labels=labels)
+            loss = tf.reduce_mean(loss)
+
+        params = self.model.trainable_variables
+        grads = tape.gradient(loss, params)
+        self.opt.apply(grads, params)
+
+        # save training status
+        self.stat=self.stat.append({'loss':float(loss)}, ignore_index=True)
+
+        return loss
+
+# %% Training
+t = Trainer(graph_network)
+
+epochs=10
+for epoch in range(epochs):
+    loss=float(t.step(graphs,labels))
+    print(epoch, loss)
+
 
 # %%
