@@ -18,11 +18,11 @@ def load_data():
 
 def label(df):
     """ Add `label` inplace column to dataframe `df`. """
-    label0=(df.GhostHBosonsCount==1)
-    label1=(df.GhostHBosonsCount==0)&(df.GhostBHadronsFinalCount==2)
-    label2=(df.GhostHBosonsCount==0)&(df.GhostBHadronsFinalCount!=2)
+    df['label0']=(df.GhostHBosonsCount==1)
+    df['label1']=(df.GhostHBosonsCount==0)&(df.GhostBHadronsFinalCount==2)
+    df['label2']=(df.GhostHBosonsCount==0)&(df.GhostBHadronsFinalCount!=2)
 
     df['label']=3 # default value
-    df.loc[label0,'label']=0
-    df.loc[label1,'label']=1
-    df.loc[label2,'label']=2
+    df.loc[df.label0,'label']=0
+    df.loc[df.label1,'label']=1
+    df.loc[df.label2,'label']=2
