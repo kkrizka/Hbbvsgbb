@@ -68,7 +68,7 @@ def create_graph(fatjet,constit,feat):
     globals=[]
 
     # Nodes are individual tracks
-    nodes=np.array([constit[x] for x in feat]).T
+    nodes=np.array([np.abs(constit[x]) for x in feat]).T
 
     # Fully connected graph, w/o loops
     i=itertools.product(range(nodes.shape[0]),range(nodes.shape[0]))
