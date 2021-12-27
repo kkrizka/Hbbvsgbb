@@ -55,7 +55,7 @@ def load_data_constit(tag='r10201'):
     f=h5py.File(path)
     return f['fat_jet_constituents']
 
-def create_graph(fatjet,constit,feat=['pt','deta','dphi','trk_btagIp_d0','trk_btagIp_z0SinTheta','trk_btagIp_d0Uncertainty','trk_btagIp_z0SinThetaUncertainty']):
+def create_graph(fatjet,constit,feat):
     """
     Create a dictionary graph for a large R jet. The graph is taken to be fully
     connected. The node features are constituent properties listed in `feat`.

@@ -24,18 +24,18 @@ fmt=formatter.Formatter('variables.yaml')
 # %% Load per jet information
 df_train=data.load_data()
 data.label(df_train)
-#df_train=df_train.loc[:1000].copy()
 
 df_test=data.load_data('r9364')
 data.label(df_test)
-#df_test=df_test.loc[:1000].copy()
 
 # %% Load jet constituent data
+feat=['pt','deta','dphi','trk_btagIp_d0','trk_btagIp_z0SinTheta','trk_btagIp_d0Uncertainty','trk_btagIp_z0SinThetaUncertainty']
+
 fjc_train=data.load_data_constit()
-g_train=data.create_graphs(df_train, fjc_train)
+g_train=data.create_graphs(df_train, fjc_train,feat)
 
 fjc_test=data.load_data_constit('r9364')
-g_test=data.create_graphs(df_test, fjc_test)
+g_test=data.create_graphs(df_test, fjc_test,feat)
 
 #%%
 l_train=tf.convert_to_tensor(df_train[['label0','label1','label2']])
@@ -145,7 +145,7 @@ for epoch in tqdm.trange(epochs):
     ax_t.plot(t.stat.test_loss,label='Test')
     ax_t.set_yscale('log')
     ax_t.set_ylabel('loss')
-    ax_t.ylim(1e-1, 1e3)
+    ax_t.set_ylim(1e-1, 1e3)
     ax_t.set_xlabel('epoch')
     ax_t.legend()
     fig_t.savefig('training')
