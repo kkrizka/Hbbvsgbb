@@ -3,6 +3,8 @@
 #%autoreload 2
 
 # %%
+import sys
+
 import tqdm
 import numpy as np
 import pandas as pd
@@ -14,8 +16,29 @@ import matplotlib.pyplot as plt
 import hbbgbb.plot as myplt
 from hbbgbb import data
 from hbbgbb import analysis
+from hbbgbb.models import graphs
 
 import settings
+
+# %% Arguments
+features=['trk_btagIp_d0','trk_btagIp_z0SinTheta']
+labels=[0,1,2]
+output='graph'
+epochs=10
+
+if 'ipykernel_launcher' not in sys.argv[0]: # running in a notebook
+    import argparse
+    parser = argparse.ArgumentParser(description='Train GNN from track features')
+    parser.add_argument('features', nargs='*', default=features, help='Features to train on.')
+    parser.add_argument('--output', type=str, default=output, help='Output name.')
+    parser.add_argument('--epochs', type=int, default=epochs, help='Number of epochs to train.')
+    args = parser.parse_args()
+
+    features = args.features
+    output = args.output
+    epochs = args.epochs
+
+strlabels=list(map(lambda l: f'label{l}', labels))
 
 # %% Formatting
 from hbbgbb import formatter
@@ -28,55 +51,39 @@ data.label(df_train)
 df_test=data.load_data('r9364')
 data.label(df_test)
 
-# %% Load jet constituent data
-feat=['pt','deta','dphi','trk_btagIp_d0','trk_btagIp_z0SinTheta','trk_btagIp_d0Uncertainty','trk_btagIp_z0SinThetaUncertainty']
+# %% Filter only specific labels
+df_train=df_train[np.any(df_train[strlabels],axis=1)].copy()
+df_test =df_test [np.any(df_test [strlabels],axis=1)].copy()
 
+# %% Create tensors of labels
+l_train=tf.convert_to_tensor(df_train[strlabels])
+l_test =tf.convert_to_tensor(df_test [strlabels])
+
+# %% Load jet constituent data
 fjc_train=data.load_data_constit()
-g_train=data.create_graphs(df_train, fjc_train,feat)
+g_train=data.create_graphs(df_train, fjc_train,features)
 
 fjc_test=data.load_data_constit('r9364')
-g_test=data.create_graphs(df_test, fjc_test,feat)
+g_test =data.create_graphs(df_test , fjc_test ,features)
 
-#%%
-l_train=tf.convert_to_tensor(df_train[['label0','label1','label2']])
-l_test =tf.convert_to_tensor(df_test [['label0','label1','label2']])
 
-# %%
-class NormedMLP(snt.Module):
-    def __init__(self,output_sizes):
-        super(NormedMLP, self).__init__()
-        self.norm = snt.LayerNorm(-1, create_scale=True, create_offset=True)
-        self.mlp = snt.nets.MLP(output_sizes)
-    def __call__(self, input):
-        output = self.norm(input)
-        return self.mlp(output)
+#%% pltting code
+# gs=gn.utils_np.graphs_tuple_to_data_dicts(g_train)
+# ls=l_train.numpy()
+# df=pd.concat([pd.DataFrame({f'f{i}':g['nodes'][:,i] for i in range(g['nodes'].shape[1])}|{'l':[l[0]]*g['nodes'].shape[0]}) for g,l in zip(gs,ls)])
 
-graph_network_0 = gn.modules.InteractionNetwork(
-    node_model_fn=lambda: NormedMLP([64]),
-    edge_model_fn=lambda: NormedMLP([64]),
-)
-
-graph_network_1 = gn.modules.InteractionNetwork(
-    node_model_fn=lambda: snt.nets.MLP([64]),
-    edge_model_fn=lambda: snt.nets.MLP([64])
-)
-
-graph_network_2 = gn.modules.InteractionNetwork(
-    node_model_fn=lambda: snt.nets.MLP([64]),
-    edge_model_fn=lambda: snt.nets.MLP([64])
-)
-
-graph_network_out = gn.modules.DeepSets(
-    node_model_fn=lambda: snt.nets.MLP([64]),
-    global_model_fn=lambda: snt.nets.MLP([64,2])
-)
-
-graph_network_out = gn.modules.RelationNetwork(
-    edge_model_fn=lambda: NormedMLP([10]),
-    global_model_fn=lambda: snt.nets.MLP([3])
-)
-
-graph_network = graph_network_out #snt.Sequential([graph_network_0,graph_network_out])
+# #%%
+# fig,ax=plt.subplots(1,1,figsize=(8,8))
+# for col in df.columns:
+#     if not col.startswith('f'): continue
+#     ax.clear()
+#     b=100
+#     for l0, sdf in df.groupby('l'):
+#         _,b,_=ax.hist(sdf[col],bins=b,label=f'{l0}',histtype='step')
+#     ax.set_xlabel(col)
+#     ax.set_yscale('log')
+#     ax.legend(title='label0')
+#     fig.savefig(col)
 
 # %% Training procedure
 class Trainer:
@@ -116,36 +123,36 @@ class Trainer:
 
         return loss
 
-# %% Training
-t = Trainer(graph_network)
+# %% Prepare for training
+model = graphs.INModel(len(labels),2)
+t = Trainer(model)
 
+# %% Training
 fig_s,ax_s=plt.subplots(ncols=3,figsize=(24,8))
 fig_t,ax_t=plt.subplots(figsize=(8,8))
 
-epochs=1000
 for epoch in tqdm.trange(epochs):
     loss=float(t.step(g_train,l_train, g_test, l_test))
-    print(epoch, loss)
 
-    pred=t.model(g_test)
-    df_test['pred']=tf.argmax(pred.globals, axis=1)
-    predsm=tf.nn.softmax(pred.globals)
-    df_test['score0']=predsm[:,0]
-    df_test['score1']=predsm[:,1]
-    df_test['score2']=predsm[:,2]
-
-    for i in range(3):
-        ax_s[i].clear()
-        myplt.labels(df_test,f'score{i}','label',fmt=fmt, ax=ax_s[i])
-        ax_s[i].set_yscale('log')
-    fig_s.savefig('score')
-
+    # Plot the status of the training
     ax_t.clear()
     ax_t.plot(t.stat.train_loss,label='Training')
-    ax_t.plot(t.stat.test_loss,label='Test')
+    ax_t.plot(t.stat.test_loss ,label='Test')
     ax_t.set_yscale('log')
     ax_t.set_ylabel('loss')
     ax_t.set_ylim(1e-1, 1e3)
     ax_t.set_xlabel('epoch')
     ax_t.legend()
     fig_t.savefig('training')
+
+    # Plot the scores
+    pred=t.model(g_test)
+    df_test['pred']=tf.argmax(pred.globals, axis=1)
+    predsm=tf.nn.softmax(pred.globals)
+    for label in labels:
+        df_test[f'score{label}']=predsm[:,label]
+
+        ax_s[label].clear()
+        myplt.labels(df_test,f'score{label}','label',fmt=fmt, ax=ax_s[label])
+        ax_s[label].set_yscale('log')
+    fig_s.savefig('score')
