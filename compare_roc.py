@@ -15,7 +15,7 @@ import hbbgbb.plot as myplt
 
 # %% Arguments
 rocs = ['roc_Xbb2020v2.npy', 'roc_Xbb202006.npy']
-if sys.argv[0]!='ipykernel_launcher': # running in a notebook
+if 'ipykernel_launcher' not in sys.argv[0]: # running in a notebook
     import argparse
     parser = argparse.ArgumentParser(description='Compare multiple ROC curves')
     parser.add_argument('rocs', type=str, nargs='+', default=rocs, help='Version of the tagger')
