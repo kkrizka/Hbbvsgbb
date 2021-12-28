@@ -23,20 +23,19 @@ nConstituents:
     range: [-0.5,99.5]
   fig:
     label: 'Number of Constituents'
+
 score0:
   hist:
     bins: 100
     range: [0,1]
   fig:
     label: 'Score 0'
-
 score1:
   hist:
     bins: 100
     range: [0,1]
   fig:
     label: 'Score 1'
-
 score2:
   hist:
     bins: 100

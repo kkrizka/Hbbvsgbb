@@ -156,3 +156,6 @@ for epoch in tqdm.trange(epochs):
         myplt.labels(df_test,f'score{label}','label',fmt=fmt, ax=ax_s[label])
         ax_s[label].set_yscale('log')
     fig_s.savefig('score')
+
+# %% Save output
+analysis.roc(df_test, 'score0', f'roc_{output}')
