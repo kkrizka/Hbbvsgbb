@@ -1,0 +1,7 @@
+tensorflow
+dm-sonnet
+tqdm
+kkhep
+h5py
+tables
+pandas
