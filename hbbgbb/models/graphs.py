@@ -1,13 +1,12 @@
 import sonnet as snt
 import graph_nets as gn
 
-from . import generic
-
 class INModel(snt.Module):
     """
     A GNN based on `nglayers` of interaction networks.
 
-    Each interaciton network is an NormedMLP with one layer with two outputs.
+    The input for all nodes/edges/global is first normalized using
+    `snt.LayerNorm` operating in `gn.modules.GraphIndependent`.
 
     The output is a relation network with `nlabels` global outputs.
     """
@@ -16,6 +15,12 @@ class INModel(snt.Module):
         `nglayers`: number of layers of the interaction network
         """
         super(INModel, self).__init__()
+
+        self.norm = gn.modules.GraphIndependent(
+                node_model_fn  =lambda: snt.LayerNorm(0, create_scale=True, create_offset=True),
+                edge_model_fn  =lambda: snt.LayerNorm(0, create_scale=True, create_offset=True),
+                global_model_fn=lambda: snt.LayerNorm(0, create_scale=True, create_offset=True)
+            )
 
         self.glayers = []
         for i in range(nglayers):
@@ -30,6 +35,7 @@ class INModel(snt.Module):
         )
 
     def __call__(self,data):
+        data = self.norm(data)
         for glayer in self.glayers:
             data = glayer(data)
         return self.olayer(data)
