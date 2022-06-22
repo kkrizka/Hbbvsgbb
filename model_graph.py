@@ -66,25 +66,6 @@ g_train=data.create_graphs(df_train, fjc_train,features)
 fjc_test=data.load_data_constit('r9364')
 g_test =data.create_graphs(df_test , fjc_test ,features)
 
-
-#%% pltting code
-# gs=gn.utils_np.graphs_tuple_to_data_dicts(g_train)
-# ls=l_train.numpy()
-# df=pd.concat([pd.DataFrame({f'f{i}':g['nodes'][:,i] for i in range(g['nodes'].shape[1])}|{'l':[l[0]]*g['nodes'].shape[0]}) for g,l in zip(gs,ls)])
-
-# #%%
-# fig,ax=plt.subplots(1,1,figsize=(8,8))
-# for col in df.columns:
-#     if not col.startswith('f'): continue
-#     ax.clear()
-#     b=100
-#     for l0, sdf in df.groupby('l'):
-#         _,b,_=ax.hist(sdf[col],bins=b,label=f'{l0}',histtype='step')
-#     ax.set_xlabel(col)
-#     ax.set_yscale('log')
-#     ax.legend(title='label0')
-#     fig.savefig(col)
-
 # %% Training procedure
 class Trainer:
     def __init__(self, model):
@@ -120,6 +101,7 @@ class Trainer:
 
         # save training status
         self.stat=self.stat.append({'train_loss':float(loss), 'test_loss':float(test_loss)}, ignore_index=True)
+        print(self.stat)
 
         return loss
 
@@ -155,7 +137,7 @@ for epoch in tqdm.trange(epochs):
         ax_s[label].clear()
         myplt.labels(df_test,f'score{label}','label',fmt=fmt, ax=ax_s[label])
         ax_s[label].set_yscale('log')
-    fig_s.savefig('score')
+    fig_s.savefig(f'scores/score{epoch:05d}')
 
 # %% Save output
 analysis.roc(df_test, 'score0', f'roc_{output}')

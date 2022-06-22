@@ -28,6 +28,7 @@ class INModel(snt.Module):
                 node_model_fn=lambda: snt.nets.MLP([2]),
                 edge_model_fn=lambda: snt.nets.MLP([2]),
             )
+            self.glayers.append(graph_network)
 
         self.olayer = gn.modules.RelationNetwork(
             edge_model_fn=lambda: snt.nets.MLP([2]),

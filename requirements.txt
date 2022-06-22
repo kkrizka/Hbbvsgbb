@@ -1,5 +1,6 @@
 tensorflow
 dm-sonnet
+graph_nets
 tqdm
 kkhep
 h5py
